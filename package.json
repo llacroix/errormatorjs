@@ -1,2 +1,25 @@
 {
+  "author": "Loïc Faure-Lacroix <lamerstar@gmail.com> (http://blog.vosnax.ru)",
+  "contributors": [
+  ],
+  "name": "errormator",
+  "description": "Node.js client for errormator.com",
+  "version": "0.0.1",
+  "homepage": "https://github.com/llacroix/errormatorjs",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:llacroix/errormatorjs.git"
+  },
+  "main": "./errormator",
+  "engines": {
+    "node": "*"
+  },
+  "scripts": {
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+  },
+  "optionalDependencies": {},
+  "license": "MIT"
 }
