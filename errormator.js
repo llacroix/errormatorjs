@@ -139,7 +139,7 @@
       self = this;
       server.use(function(req, res, next) {
         req.getLogger = function(namespace) {
-          return self.getLogger(req, namespace);
+          return self.getLogger(namespace, req);
         };
         return next();
       });

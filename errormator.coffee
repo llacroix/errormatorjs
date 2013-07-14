@@ -115,7 +115,7 @@ class Errormator
         server.use (req, res, next) ->
             # Inject our logger
             req.getLogger = (namespace) ->
-                return self.getLogger(req, namespace)
+                return self.getLogger(namespace, req)
 
             next()
 
