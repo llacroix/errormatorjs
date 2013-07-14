@@ -109,5 +109,35 @@ class Errormator
 
         return new ErrorReporter(this, options)
 
+    restify: (server, config) ->
+        self = this
+
+        server.use (req, res, next) ->
+            # Inject our logger
+            req.getLogger = (namespace) ->
+                return self.getLogger(request, namespace)
+
+            next()
+
+        # Basic errormator config
+        server.on 'NotFound', (request, response, cb) ->
+            self.getReporter(3, "NotFound: #{request.url}", 404, "").addReport(request, "NotFound: #{request.url}")
+
+            if config.onNotFound
+                config.onNotFound(request, response, cb)
+            else
+                response.status(404)
+                response.send("")
+
+        server.on 'uncaughtException', (request, response, route, error) ->
+            self.getReporter(5, error.message, 500, error.stack).addReport(request, error.message)
+
+            if config.onException
+                config.onException(request, response, route, error)
+            else
+                response.status(500)
+                response.send("")
+
+    express: (server, config) ->
 
 module.exports = Errormator

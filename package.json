@@ -19,6 +19,7 @@
   "dependencies": {
   },
   "devDependencies": {
+      "coffee": ""
   },
   "optionalDependencies": {},
   "license": "MIT"
