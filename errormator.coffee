@@ -8,10 +8,11 @@ doPost = (options, data) ->
     options.headers['Content-Type'] = 'application/json'
 
     req = http.request options, (res) ->
-        console.log(res.statusCode)
-
-        res.on 'data', (d) ->
-            process.stdout.write(d)
+        # Use a request logger if any instead... there should be a way
+        # to know if we're logging to console or not
+        #console.log(res.statusCode)
+        #res.on 'data', (d) ->
+        #    #process.stdout.write(d)
 
     req.write(data)
     req.end()

@@ -12,12 +12,7 @@
     options.method = "POST";
     options.headers['Content-Length'] = data.length;
     options.headers['Content-Type'] = 'application/json';
-    req = http.request(options, function(res) {
-      console.log(res.statusCode);
-      return res.on('data', function(d) {
-        return process.stdout.write(d);
-      });
-    });
+    req = http.request(options, function(res) {});
     req.write(data);
     return req.end();
   };
