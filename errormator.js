@@ -186,7 +186,7 @@
         res.on('finish', function() {
           var ms, report;
           report = self.getSlowReport();
-          report.addReport(req);
+          report.addRequest(req);
           report.send();
           ms = new Date() - req.time();
           return console.log("Handled response in " + ms + "ms");

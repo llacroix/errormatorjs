@@ -158,7 +158,7 @@ class Errormator
 
             res.on 'finish', () ->
                 report = self.getSlowReport()
-                report.addReport(req)
+                report.addRequest(req)
                 report.send()
 
                 ms = new Date() - req.time()
