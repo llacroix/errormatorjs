@@ -17,6 +17,41 @@ doPost = (options, data) ->
     req.write(data)
     req.end()
 
+class SlowReport
+
+    constructor: (@app) ->
+        @data = {
+            client: "javascript_server",
+            server: os.hostname(),
+            report_details: []
+        }
+
+    addRequest: (request) ->
+        @data.report_details.push({
+            start_time: new Date(request.time()),
+            end_time: new Date(),
+            username: request.username,
+            request_id: request.id(),
+            url: request.url
+            ip: request.connection.remoteAddress,
+            user_agent: request.headers['user-agent'],
+            message: "Request duration",
+            request: {
+                REQUEST_METHOD: request.method,
+                PATH_INFO: request.path()
+            },
+            slow_calls: []
+        })
+
+    serialize: () ->
+        return @data
+
+    send: () ->
+        opt = url.parse(@app.slow_url)
+        opt.headers = @app.getHeaders()
+
+        doPost opt, JSON.stringify([@data])
+        
 
 class Logger
     constructor: (@app, @namespace, @request) ->
@@ -56,9 +91,9 @@ class ErrorReporter
 
     addReport: (request, message) ->
         data = {
+            start_time: new Date(request.time()),
             url: request.url,
             ip: request.connection.remoteAddress,
-            start_time: new Date(request.time()),
             user_agent: request.headers['user-agent'],
             message: message,
             request_id: request.id(),
@@ -97,6 +132,9 @@ class Errormator
             "X-errormator-api-key": @key
         }
 
+    getSlowReport: () ->
+        return new SlowReport(this)
+
     getReporter: (priority, errorType, status, traceback) ->
         options = {
             client: "javascript_server",
@@ -119,6 +157,10 @@ class Errormator
                 return self.getLogger(namespace, req)
 
             res.on 'finish', () ->
+                report = self.getSlowReport()
+                report.addReport(req)
+                report.send()
+
                 ms = new Date() - req.time()
                 console.log("Handled response in #{ms}ms")
 

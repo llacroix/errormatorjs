@@ -1,5 +1,5 @@
 (function() {
-  var ErrorReporter, Errormator, Logger, doPost, http, os, url;
+  var ErrorReporter, Errormator, Logger, SlowReport, doPost, http, os, url;
 
   url = require('url');
 
@@ -16,6 +16,49 @@
     req.write(data);
     return req.end();
   };
+
+  SlowReport = (function() {
+    function SlowReport(app) {
+      this.app = app;
+      this.data = {
+        client: "javascript_server",
+        server: os.hostname(),
+        report_details: []
+      };
+    }
+
+    SlowReport.prototype.addRequest = function(request) {
+      return this.data.report_details.push({
+        start_time: new Date(request.time()),
+        end_time: new Date(),
+        username: request.username,
+        request_id: request.id(),
+        url: request.url,
+        ip: request.connection.remoteAddress,
+        user_agent: request.headers['user-agent'],
+        message: "Request duration",
+        request: {
+          REQUEST_METHOD: request.method,
+          PATH_INFO: request.path()
+        },
+        slow_calls: []
+      });
+    };
+
+    SlowReport.prototype.serialize = function() {
+      return this.data;
+    };
+
+    SlowReport.prototype.send = function() {
+      var opt;
+      opt = url.parse(this.app.slow_url);
+      opt.headers = this.app.getHeaders();
+      return doPost(opt, JSON.stringify([this.data]));
+    };
+
+    return SlowReport;
+
+  })();
 
   Logger = (function() {
     function Logger(app, namespace, request) {
@@ -71,9 +114,9 @@
     ErrorReporter.prototype.addReport = function(request, message) {
       var data;
       data = {
+        start_time: new Date(request.time()),
         url: request.url,
         ip: request.connection.remoteAddress,
-        start_time: new Date(request.time()),
         user_agent: request.headers['user-agent'],
         message: message,
         request_id: request.id(),
@@ -115,6 +158,10 @@
       };
     };
 
+    Errormator.prototype.getSlowReport = function() {
+      return new SlowReport(this);
+    };
+
     Errormator.prototype.getReporter = function(priority, errorType, status, traceback) {
       var options;
       options = {
@@ -137,7 +184,10 @@
           return self.getLogger(namespace, req);
         };
         res.on('finish', function() {
-          var ms;
+          var ms, report;
+          report = self.getSlowReport();
+          report.addReport(req);
+          report.send();
           ms = new Date() - req.time();
           return console.log("Handled response in " + ms + "ms");
         });
