@@ -13,9 +13,16 @@ github url.
 
 #### TODOS
 
-- Add slow requests reporter
+- Refactor Reporters and Reports. It should be possible to create reports without looking at the whole structure. Reports can then be pushed to a pool. Once the pool is full or there is nothing to do, we can then push it back to the server (errormator)
+
+Needs a base class to "prevent" duplication of code. Make all reports behave alike and push them into a pool
+
 - Make an integration for connect/expressjs
 - Make reporters lazy. They currently sends reports whenever something has to be reported. There should be a way to wait for some times to gather as much as possible reports and to log something under the 75kb limit. This will reduce processing time of small requests.
+
+#### Changelog 7/15/2013
+
+- Add slow requests reporter
 
 #### Changelog 7/14/2013
 
