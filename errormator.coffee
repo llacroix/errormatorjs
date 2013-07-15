@@ -119,7 +119,8 @@ class Errormator
                 return self.getLogger(namespace, req)
 
             res.on 'finish', () ->
-                process.stdout.write("After everything debug")
+                ms = new Date() - req.time()
+                console.log("Handled response in #{ms}ms")
 
             next()
 

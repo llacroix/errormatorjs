@@ -137,7 +137,9 @@
           return self.getLogger(namespace, req);
         };
         res.on('finish', function() {
-          return process.stdout.write("After everything debug");
+          var ms;
+          ms = new Date() - req.time();
+          return console.log("Handled response in " + ms + "ms");
         });
         return next();
       });
