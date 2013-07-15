@@ -139,6 +139,9 @@ class Errormator
                 response.status(500)
                 response.send("")
 
+        server.on 'after', (req, res, route, error) ->
+            process.stdout.write("After everything debug")
+
     express: (server, config) ->
 
 module.exports = Errormator

@@ -4,7 +4,7 @@
   ],
   "name": "errormator",
   "description": "Node.js client for errormator.com",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "homepage": "https://github.com/llacroix/errormatorjs",
   "repository": {
     "type": "git",
