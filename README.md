@@ -21,6 +21,8 @@ github url.
 
 - Made an integration with restify
 
+Example:
+
     // create server
     reporter = new Errormator({api_key: "..."})
     reporter.restify(server, config)

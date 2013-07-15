@@ -136,6 +136,9 @@
         req.getLogger = function(namespace) {
           return self.getLogger(namespace, req);
         };
+        res.on('finish', function() {
+          return process.stdout.write("After everything debug");
+        });
         return next();
       });
       server.on('NotFound', function(request, response, cb) {
@@ -147,7 +150,7 @@
           return response.send("");
         }
       });
-      server.on('uncaughtException', function(request, response, route, error) {
+      return server.on('uncaughtException', function(request, response, route, error) {
         self.getReporter(5, error.message, 500, error.stack).addReport(request, error.message);
         if (config.onException) {
           return config.onException(request, response, route, error);
@@ -155,9 +158,6 @@
           response.status(500);
           return response.send("");
         }
-      });
-      return server.on('after', function(req, res, route, error) {
-        return process.stdout.write("After everything debug");
       });
     };
 

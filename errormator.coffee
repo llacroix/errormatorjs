@@ -118,6 +118,9 @@ class Errormator
             req.getLogger = (namespace) ->
                 return self.getLogger(namespace, req)
 
+            res.on 'finish', () ->
+                process.stdout.write("After everything debug")
+
             next()
 
         # Basic errormator config
@@ -138,9 +141,6 @@ class Errormator
             else
                 response.status(500)
                 response.send("")
-
-        server.on 'after', (req, res, route, error) ->
-            process.stdout.write("After everything debug")
 
     express: (server, config) ->
 
