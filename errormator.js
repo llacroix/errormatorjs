@@ -1,5 +1,5 @@
 (function() {
-  var ErrorReporter, Errormator, Logger, SlowReport, doPost, http, os, url;
+  var ErrorReporter, Errormator, Logger, SlowReport, fs, http, os, url;
 
   url = require('url');
 
@@ -7,15 +7,7 @@
 
   os = require("os");
 
-  doPost = function(options, data) {
-    var req;
-    options.method = "POST";
-    options.headers['Content-Length'] = data.length;
-    options.headers['Content-Type'] = 'application/json';
-    req = http.request(options, function(res) {});
-    req.write(data);
-    return req.end();
-  };
+  fs = require('fs');
 
   SlowReport = (function() {
     function SlowReport(app) {
@@ -53,7 +45,7 @@
       var opt;
       opt = url.parse(this.app.slow_url);
       opt.headers = this.app.getHeaders();
-      return doPost(opt, JSON.stringify([this.data]));
+      return this.app.doPost(opt, JSON.stringify([this.data]));
     };
 
     return SlowReport;
@@ -82,7 +74,7 @@
       };
       options = url.parse(this.app.log_url);
       options.headers = this.app.getHeaders();
-      return doPost(options, JSON.stringify([obj]));
+      return this.app.doPost(options, JSON.stringify([obj]));
     };
 
     Logger.prototype.info = function(message, date) {
@@ -133,7 +125,7 @@
       var opt;
       opt = url.parse(this.app.report_url);
       opt.headers = this.app.getHeaders();
-      return doPost(opt, JSON.stringify([this.options]));
+      return this.app.doPost(opt, JSON.stringify([this.options]));
     };
 
     return ErrorReporter;
@@ -142,11 +134,35 @@
 
   Errormator = (function() {
     function Errormator(config) {
+      this.verbose = config.verbose;
+      this.logger = config.logger;
       this.key = config.api_key;
       this.log_url = config.logUrl || "https://api.errormator.com/api/logs?protocol_version=0.3";
       this.report_url = config.reportUrl || "https://api.errormator.com/api/reports?protocol_version=0.3";
       this.slow_url = config.slowUrl || "https://api.errormator.com/api/slow_reports?protocol_version=0.3";
     }
+
+    Errormator.prototype.doPost = function(options, data) {
+      var req,
+        _this = this;
+      if (this.debug && this.outFile) {
+        return fs.appendFileSync(this.outFile, data);
+      } else {
+        options.method = "POST";
+        options.headers['Content-Length'] = data.length;
+        options.headers['Content-Type'] = 'application/json';
+        req = http.request(options, function(res) {
+          if (_this.verbose && _this.logger) {
+            _this.logger.debug("Status code: " + res.statusCode);
+            return res.on('data', function(d) {
+              return _this.logger.debug(d);
+            });
+          }
+        });
+        req.write(data);
+        return req.end();
+      }
+    };
 
     Errormator.prototype.getLogger = function(namespace, request) {
       return new Logger(this, namespace, request);
@@ -177,24 +193,26 @@
     };
 
     Errormator.prototype.restify = function(server, config) {
-      var self;
-      self = this;
+      var _this = this;
       server.use(function(req, res, next) {
         req.getLogger = function(namespace) {
-          return self.getLogger(namespace, req);
+          return _this.getLogger(namespace, req);
         };
         res.on('finish', function() {
-          var ms, report;
-          report = self.getSlowReport();
+          var ms, now, report;
+          report = _this.getSlowReport();
           report.addRequest(req);
           report.send();
-          ms = new Date() - req.time();
-          return console.log("Handled response in " + ms + "ms");
+          if (_this.verbose && _this.logger) {
+            now = new Date();
+            ms = now - req.time();
+            return _this.logger.debug("[" + (now.toLocaleTimeString()) + "]: " + (req.method.toUpperCase()) + " '" + (req.path()) + "'  in " + ms + "ms");
+          }
         });
         return next();
       });
       server.on('NotFound', function(request, response, cb) {
-        self.getReporter(3, "NotFound: " + request.url, 404, "").addReport(request, "NotFound: " + request.url);
+        _this.getReporter(3, "NotFound: " + request.url, 404, "").addReport(request, "NotFound: " + request.url);
         if (config.onNotFound) {
           return config.onNotFound(request, response, cb);
         } else {
@@ -203,7 +221,7 @@
         }
       });
       return server.on('uncaughtException', function(request, response, route, error) {
-        self.getReporter(5, error.message, 500, error.stack).addReport(request, error.message);
+        _this.getReporter(5, error.message, 500, error.stack).addReport(request, error.message);
         if (config.onException) {
           return config.onException(request, response, route, error);
         } else {

@@ -1,21 +1,7 @@
 url = require('url')
 http = require('https')
 os = require("os")
-
-doPost = (options, data) ->
-    options.method = "POST"
-    options.headers['Content-Length'] = data.length
-    options.headers['Content-Type'] = 'application/json'
-
-    req = http.request options, (res) ->
-        # Use a request logger if any instead... there should be a way
-        # to know if we're logging to console or not
-        #console.log(res.statusCode)
-        #res.on 'data', (d) ->
-        #    #process.stdout.write(d)
-
-    req.write(data)
-    req.end()
+fs = require('fs')
 
 class SlowReport
 
@@ -50,7 +36,7 @@ class SlowReport
         opt = url.parse(@app.slow_url)
         opt.headers = @app.getHeaders()
 
-        doPost opt, JSON.stringify([@data])
+        @app.doPost opt, JSON.stringify([@data])
         
 
 class Logger
@@ -70,7 +56,7 @@ class Logger
         options = url.parse(@app.log_url)
         options.headers = @app.getHeaders()
 
-        doPost options, JSON.stringify([obj])
+        @app.doPost options, JSON.stringify([obj])
 
 
     info: (message, date) ->
@@ -111,17 +97,35 @@ class ErrorReporter
         opt = url.parse(@app.report_url)
         opt.headers = @app.getHeaders()
 
-        doPost opt, JSON.stringify([@options])
-        
-        
+        @app.doPost opt, JSON.stringify([@options])
 
 class Errormator
     constructor: (config) ->
+        @verbose = config.verbose
+        @logger = config.logger
         @key = config.api_key
 
         @log_url = config.logUrl || "https://api.errormator.com/api/logs?protocol_version=0.3"
         @report_url = config.reportUrl || "https://api.errormator.com/api/reports?protocol_version=0.3"
         @slow_url = config.slowUrl || "https://api.errormator.com/api/slow_reports?protocol_version=0.3"
+
+    doPost: (options, data) ->
+        if @debug && @outFile
+            fs.appendFileSync(@outFile, data)
+        else
+            options.method = "POST"
+            options.headers['Content-Length'] = data.length
+            options.headers['Content-Type'] = 'application/json'
+
+            req = http.request options, (res) =>
+                if @verbose && @logger
+                    @logger.debug "Status code: #{res.statusCode}"
+
+                    res.on 'data', (d) =>
+                        @logger.debug d
+
+            req.write(data)
+            req.end()
 
 
     getLogger: (namespace, request) ->
@@ -149,26 +153,26 @@ class Errormator
         return new ErrorReporter(this, options)
 
     restify: (server, config) ->
-        self = this
-
-        server.use (req, res, next) ->
+        server.use (req, res, next) =>
             # Inject our logger
-            req.getLogger = (namespace) ->
-                return self.getLogger(namespace, req)
+            req.getLogger = (namespace) =>
+                return @getLogger(namespace, req)
 
-            res.on 'finish', () ->
-                report = self.getSlowReport()
+            res.on 'finish', () =>
+                report = @getSlowReport()
                 report.addRequest(req)
                 report.send()
 
-                ms = new Date() - req.time()
-                console.log("Handled response in #{ms}ms")
+                if @verbose && @logger
+                    now = new Date()
+                    ms = now - req.time()
+                    @logger.debug "[#{now.toLocaleTimeString()}]: #{req.method.toUpperCase()} '#{req.path()}'  in #{ms}ms"
 
             next()
 
         # Basic errormator config
-        server.on 'NotFound', (request, response, cb) ->
-            self.getReporter(3, "NotFound: #{request.url}", 404, "").addReport(request, "NotFound: #{request.url}")
+        server.on 'NotFound', (request, response, cb) =>
+            @getReporter(3, "NotFound: #{request.url}", 404, "").addReport(request, "NotFound: #{request.url}")
 
             if config.onNotFound
                 config.onNotFound(request, response, cb)
@@ -176,8 +180,8 @@ class Errormator
                 response.status(404)
                 response.send("")
 
-        server.on 'uncaughtException', (request, response, route, error) ->
-            self.getReporter(5, error.message, 500, error.stack).addReport(request, error.message)
+        server.on 'uncaughtException', (request, response, route, error) =>
+            @getReporter(5, error.message, 500, error.stack).addReport(request, error.message)
 
             if config.onException
                 config.onException(request, response, route, error)
